@@ -1,1 +1,14 @@
-* @castrojo @p5 @m2Giles @tulilirockz
+# Owners of ublue-os/bluefin (Bluefin Classic).
+# GitHub only honours entries for users with write access to this repository.
+
+*                       @murphym18 @nikhil00shinde @castrojo @p5 @m2Giles @tulilirockz
+
+# Build and release surfaces — a mistake here ships to every stream.
+/.github/workflows/     @castrojo @p5 @m2Giles @tulilirockz
+/Justfile               @castrojo @p5 @m2Giles @tulilirockz
+/Containerfile          @castrojo @p5 @m2Giles @tulilirockz
+/image-versions.yml     @castrojo @p5 @m2Giles @tulilirockz
+/build_files/           @castrojo @p5 @m2Giles @tulilirockz
+
+# Emeritus — founding maintainers, kept on the lines above through the handoff.
+#   @castrojo @p5 @m2Giles @tulilirockz
