@@ -9,6 +9,35 @@ set -ouex pipefail
 # shellcheck source=build_files/shared/copr-helpers.sh
 source /ctx/build_files/shared/copr-helpers.sh
 
+# Use negativo17 for 3rd party packages with higher priority than default.
+# The base image is Fedora's own Silverblue, which ships Fedora's crippled
+# mesa/va stack; this replaces it the way the previous ublue base image did.
+if ! grep -q fedora-multimedia <(dnf5 repolist); then
+    # Enable or install repofile
+    dnf5 config-manager setopt fedora-multimedia.enabled=1 ||
+        dnf5 config-manager addrepo --from-repofile="https://negativo17.org/repos/fedora-multimedia.repo"
+fi
+# Set higher priority
+dnf5 config-manager setopt fedora-multimedia.priority=90
+
+# Use override to replace mesa and others with less crippled versions
+OVERRIDES=(
+    intel-gmmlib
+    intel-mediasdk
+    intel-vpl-gpu-rt
+    libheif
+    libva
+    libva-intel-media-driver
+    mesa-dri-drivers
+    mesa-filesystem
+    mesa-libEGL
+    mesa-libGL
+    mesa-libgbm
+    mesa-vulkan-drivers
+)
+dnf5 distro-sync --skip-unavailable -y --repo='fedora-multimedia' "${OVERRIDES[@]}"
+dnf5 versionlock add "${OVERRIDES[@]}"
+
 # NOTE:
 # Packages are split into FEDORA_PACKAGES and COPR_PACKAGES to prevent
 # malicious COPRs from injecting fake versions of Fedora packages.

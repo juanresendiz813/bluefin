@@ -137,7 +137,7 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
 
     # Base image digest pin, keyed by the resolved Fedora version so the pinned
     # digest can never disagree with the version everything else is built for.
-    base_image_entry="${base_image_name}-main-${fedora_version}"
+    base_image_entry="${base_image_name}-${fedora_version}"
     base_image_sha=$(yq -r ".images[] | select(.name == \"${base_image_entry}\") | .digest" image-versions.yml)
     if [[ -z "${base_image_sha}" || "${base_image_sha}" == "null" ]]; then
         echo "No digest pinned for ${base_image_entry} in image-versions.yml." >&2
@@ -146,7 +146,7 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
     fi
 
     # Verify Base Image with cosign, pinned by digest
-    {{ just }} verify-container "${base_image_name}-main:${fedora_version}@${base_image_sha}"
+    {{ just }} verify-container "${base_image_name}:${fedora_version}@${base_image_sha}" quay.io/fedora-ostree-desktops {{ justfile_directory() }}/keys/fedora-ostree.pub
 
     # Kernel Release/Pin
     if [[ -z "${kernel_pin:-}" ]]; then
