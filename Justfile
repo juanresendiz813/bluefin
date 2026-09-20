@@ -3,6 +3,7 @@ rechunker_image := "ghcr.io/ublue-os/legacy-rechunk:v1.0.1-x86_64@sha256:2627cbf
 common_image := "ghcr.io/projectbluefin/common:latest"
 brew_image := "ghcr.io/ublue-os/brew:latest"
 base_image_org := "quay.io/fedora-ostree-desktops"
+base_image_name := "silverblue"
 images := '(
     [bluefin]=bluefin
     [bluefin-dx]=bluefin-dx
@@ -115,10 +116,6 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
     common_image_sha=$(yq -r '.images[] | select(.name == "common") | .digest' image-versions.yml)
     brew_image_sha=$(yq -r '.images[] | select(.name == "brew") | .digest' image-versions.yml)
 
-    # Base Image
-    base_image_name="silverblue"
-
-
     # AKMODS Flavor and Kernel Version
     if [[ "${flavor}" =~ hwe ]]; then
         akmods_flavor="bazzite"
@@ -146,8 +143,8 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
     base_image_retry_delay=10
     last_digest_error=""
     for attempt in $(seq 1 "${base_image_max_retries}"); do
-        if inspect_output=$(skopeo inspect --retry-times 3 docker://{{ base_image_org }}/"${base_image_name}":"${fedora_version}" 2>&1); then
-            base_image_sha=$(jq -r '.Digest // empty' <<<"${inspect_output}")
+        if inspect_output=$(skopeo inspect --retry-times 3 docker://{{ base_image_org }}/{{ base_image_name }}:"${fedora_version}" 2>&1); then
+            base_image_sha=$(echo "${inspect_output}" | jq -r '.Digest // empty')
             if [[ -n "${base_image_sha:-}" ]]; then
                 break
             fi
@@ -157,7 +154,7 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
         fi
 
         if [[ "${attempt}" -eq "${base_image_max_retries}" ]]; then
-            echo "ERROR: Could not resolve ${base_image_name} digest after ${base_image_max_retries} attempts." >&2
+            echo "ERROR: Could not resolve {{ base_image_name }} digest after ${base_image_max_retries} attempts." >&2
             echo "Refusing to build without a pinned, verified base image." >&2
             echo "Last error: ${last_digest_error}" >&2
             exit 1
@@ -175,8 +172,8 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
     if [[ "${SKIP_BASE_VERIFY:-}" == "1" && "${CI:-}" != "true" ]]; then
         echo "WARNING: Skipping base image verification (SKIP_BASE_VERIFY=1, local dev only)"
     else
-        {{ just }} verify-container "${base_image_name}:${fedora_version}@${base_image_sha}" {{ base_image_org }} "{{ justfile_directory() }}/keys/fedora-ostree.pub" || {
-            echo "ERROR: Base image cosign verification FAILED for {{ base_image_org }}/${base_image_name}:${fedora_version}@${base_image_sha}" >&2
+        {{ just }} verify-container "{{ base_image_name }}:${fedora_version}@${base_image_sha}" {{ base_image_org }} "{{ justfile_directory() }}/keys/fedora-ostree.pub" || {
+            echo "ERROR: Base image cosign verification FAILED for {{ base_image_org }}/{{ base_image_name }}:${fedora_version}@${base_image_sha}" >&2
             echo "This may indicate a key rotation, registry compromise, or transient network issue." >&2
             echo "If this is a known key rotation, update keys/fedora-ostree.pub and retry." >&2
             echo "If this is a transient network issue, retry the build." >&2
@@ -229,7 +226,7 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
         target="dx"
     fi
     BUILD_ARGS+=("--build-arg" "AKMODS_FLAVOR=${akmods_flavor}")
-    BUILD_ARGS+=("--build-arg" "BASE_IMAGE_NAME=${base_image_name}")
+    BUILD_ARGS+=("--build-arg" "BASE_IMAGE_NAME={{ base_image_name }}")
     BUILD_ARGS+=("--build-arg" "BASE_IMAGE_SHA=${base_image_sha}")
     BUILD_ARGS+=("--build-arg" "COMMON_IMAGE={{ common_image }}")
     BUILD_ARGS+=("--build-arg" "COMMON_IMAGE_SHA=${common_image_sha}")
@@ -381,7 +378,7 @@ rechunk $image="bluefin" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
         if [[ "${tag}" =~ stable ]]; then
             tag="stable-daily"
         fi
-        ID=$(${SUDOIF} ${PODMAN} images --filter reference={{ base_image_org }}/"${base_image_name}":${fedora_version} --format "{{ '{{.ID}}' }}")
+        ID=$(${SUDOIF} ${PODMAN} images --filter reference={{ base_image_org }}/{{ base_image_name }}:${fedora_version} --format "{{ '{{.ID}}' }}")
         if [[ -n "$ID" ]]; then
             ${PODMAN} rmi "$ID"
         fi
