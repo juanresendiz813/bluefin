@@ -1,16 +1,9 @@
 images:
-  # The base image is pinned per Fedora major version because `just build`
-  # resolves the version dynamically and the stable/latest streams do not always
-  # sit on different releases. The entry name must be
-  # `silverblue-${fedora_version}`; add a new one at each Fedora rollover.
-  - name: silverblue-main-43
-    image: ghcr.io/ublue-os/silverblue-main
-    tag: "43"
-    digest: sha256:5111c949b19454da98cf4f0afb1f241331e0bf0373b590c82653c83d8464e510
-  - name: silverblue-44
-    image: quay.io/fedora-ostree-desktops/silverblue
-    tag: "44"
-    digest: sha256:82ea364ab3c5abb01bbeb8c4a342372124bf3200b2baf4d1b4e143895edb3b1b
+  # The base image is deliberately absent. quay.io enforces the
+  # `quay.expires-after: 4w` label on fedora-ostree-desktops, so any digest
+  # recorded here starts returning 404 about four weeks later and would break
+  # every stream. `just build` resolves it from the registry and verifies it
+  # with cosign on each build instead, and refuses to build if it cannot.
   - name: common
     image: ghcr.io/projectbluefin/common
     tag: latest

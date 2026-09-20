@@ -45,6 +45,11 @@ for repo in negativo17-fedora-multimedia fedora-multimedia tailscale fedora-cisc
     fi
 done
 
+# `dnf config-manager` does not edit the repo files above - it writes
+# /etc/dnf/repos.override.d/99-config_manager.repo, which takes precedence over
+# them. Left in place it would ship fedora-multimedia enabled despite the sed.
+rm -f /etc/dnf/repos.override.d/99-config_manager.repo
+
 # Disable all COPR repos (should already be disabled by helpers, but ensure)
 for i in /etc/yum.repos.d/_copr:*.repo; do
     if [[ -f "$i" ]]; then

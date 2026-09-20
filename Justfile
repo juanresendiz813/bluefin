@@ -2,6 +2,7 @@ repo_organization := "ublue-os"
 rechunker_image := "ghcr.io/ublue-os/legacy-rechunk:v1.0.1-x86_64@sha256:2627cbf92ca60ab7372070dcf93b40f457926f301509ffba47a04d6a9e1ddaf7"
 common_image := "ghcr.io/projectbluefin/common:latest"
 brew_image := "ghcr.io/ublue-os/brew:latest"
+base_image_org := "quay.io/fedora-ostree-desktops"
 images := '(
     [bluefin]=bluefin
     [bluefin-dx]=bluefin-dx
@@ -135,18 +136,53 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
     fi
     fedora_version=$({{ just }} fedora_version '{{ image }}' '{{ tag }}' '{{ flavor }}' '{{ kernel_pin }}')
 
-    # Base image digest pin, keyed by the resolved Fedora version so the pinned
-    # digest can never disagree with the version everything else is built for.
-    base_image_entry="${base_image_name}-${fedora_version}"
-    base_image_sha=$(yq -r ".images[] | select(.name == \"${base_image_entry}\") | .digest" image-versions.yml)
-    if [[ -z "${base_image_sha}" || "${base_image_sha}" == "null" ]]; then
-        echo "No digest pinned for ${base_image_entry} in image-versions.yml." >&2
-        echo "Add an entry for Fedora ${fedora_version} before building." >&2
-        exit 1
-    fi
+    # Resolve the base image digest at build time. It cannot live in
+    # image-versions.yml: quay.io enforces the `quay.expires-after: 4w` label on
+    # fedora-ostree-desktops, so a recorded digest starts returning 404 about
+    # four weeks after it is written, and the base pin has historically sat
+    # unbumped for longer than that. Refuse to build rather than fall back to an
+    # unpinned tag.
+    base_image_max_retries=5
+    base_image_retry_delay=10
+    last_digest_error=""
+    for attempt in $(seq 1 "${base_image_max_retries}"); do
+        if inspect_output=$(skopeo inspect --retry-times 3 docker://{{ base_image_org }}/"${base_image_name}":"${fedora_version}" 2>&1); then
+            base_image_sha=$(jq -r '.Digest // empty' <<<"${inspect_output}")
+            if [[ -n "${base_image_sha:-}" ]]; then
+                break
+            fi
+            last_digest_error="skopeo inspect returned no digest"
+        else
+            last_digest_error="${inspect_output}"
+        fi
 
-    # Verify Base Image with cosign, pinned by digest
-    {{ just }} verify-container "${base_image_name}:${fedora_version}@${base_image_sha}" quay.io/fedora-ostree-desktops {{ justfile_directory() }}/keys/fedora-ostree.pub
+        if [[ "${attempt}" -eq "${base_image_max_retries}" ]]; then
+            echo "ERROR: Could not resolve ${base_image_name} digest after ${base_image_max_retries} attempts." >&2
+            echo "Refusing to build without a pinned, verified base image." >&2
+            echo "Last error: ${last_digest_error}" >&2
+            exit 1
+        fi
+
+        echo "NOTICE: Digest resolution attempt ${attempt}/${base_image_max_retries} failed, retrying in ${base_image_retry_delay}s..."
+        sleep "${base_image_retry_delay}"
+    done
+
+    # Verify Base Image with cosign, pinned by digest. Fatal in CI, skippable
+    # locally so VM iteration is not gated on a network round-trip every build.
+    # The key is the Fedora Atomic Desktops SIG CI signing key, published at
+    # https://gitlab.com/fedora/ostree/ci-test - which titles these
+    # "Unofficial" Bootable Container images for the Fedora Atomic Desktops.
+    if [[ "${SKIP_BASE_VERIFY:-}" == "1" && "${CI:-}" != "true" ]]; then
+        echo "WARNING: Skipping base image verification (SKIP_BASE_VERIFY=1, local dev only)"
+    else
+        {{ just }} verify-container "${base_image_name}:${fedora_version}@${base_image_sha}" {{ base_image_org }} "{{ justfile_directory() }}/keys/fedora-ostree.pub" || {
+            echo "ERROR: Base image cosign verification FAILED for {{ base_image_org }}/${base_image_name}:${fedora_version}@${base_image_sha}" >&2
+            echo "This may indicate a key rotation, registry compromise, or transient network issue." >&2
+            echo "If this is a known key rotation, update keys/fedora-ostree.pub and retry." >&2
+            echo "If this is a transient network issue, retry the build." >&2
+            exit 1
+        }
+    fi
 
     # Kernel Release/Pin
     if [[ -z "${kernel_pin:-}" ]]; then
@@ -342,11 +378,10 @@ rechunk $image="bluefin" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
 
     # Cleanup Space during Github Action
     if [[ "{{ ghcr }}" == "1" ]]; then
-        base_image_name=silverblue-main
         if [[ "${tag}" =~ stable ]]; then
             tag="stable-daily"
         fi
-        ID=$(${SUDOIF} ${PODMAN} images --filter reference=ghcr.io/{{ repo_organization }}/"${base_image_name}":${fedora_version} --format "{{ '{{.ID}}' }}")
+        ID=$(${SUDOIF} ${PODMAN} images --filter reference={{ base_image_org }}/"${base_image_name}":${fedora_version} --format "{{ '{{.ID}}' }}")
         if [[ -n "$ID" ]]; then
             ${PODMAN} rmi "$ID"
         fi
