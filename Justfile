@@ -587,6 +587,56 @@ fedora_version image="bluefin" tag="latest" flavor="main" $kernel_pin="":
     fi
     echo "${fedora_version}"
 
+# Check whether a Fedora major version has everything Classic needs to build.
+# Answers "can we move to Fedora N?" in seconds, without running a build.
+[group('Utility')]
+rollover-check version="":
+    #!/usr/bin/bash
+    set -eou pipefail
+    if [[ -z "{{ version }}" ]]; then
+        echo "Usage: just rollover-check <fedora-major-version>   (e.g. just rollover-check 45)" >&2
+        exit 1
+    fi
+    version="{{ version }}"
+    base_image_name="silverblue"
+    missing=0
+
+    probe() {
+        if skopeo inspect --retry-times 3 "docker://$1" > /dev/null 2>&1; then
+            printf '  ok       %-52s %s\n' "$1" "$2"
+        else
+            printf '  MISSING  %-52s %s\n' "$1" "$2"
+            missing=1
+        fi
+    }
+
+    echo "Fedora ${version} readiness:"
+    echo
+    probe "quay.io/fedora-ostree-desktops/${base_image_name}:${version}" "Fedora upstream"
+    probe "ghcr.io/ublue-os/base-main:${version}" "version signal read by 'just fedora_version'"
+    probe "ghcr.io/ublue-os/${base_image_name}-main:${version}" "base image"
+    probe "ghcr.io/ublue-os/akmods:coreos-stable-${version}" "akmods - stable stream"
+    probe "ghcr.io/ublue-os/akmods:main-${version}" "akmods - latest/beta streams"
+    probe "ghcr.io/ublue-os/akmods-zfs:coreos-stable-${version}" "akmods-zfs - stable stream"
+    probe "ghcr.io/ublue-os/akmods-nvidia-open:main-${version}" "akmods-nvidia-open - latest/beta"
+
+    echo
+    entry="${base_image_name}-main-${version}"
+    digest=$(yq -r ".images[] | select(.name == \"${entry}\") | .digest" image-versions.yml)
+    if [[ -z "${digest}" || "${digest}" == "null" ]]; then
+        printf '  MISSING  %-52s %s\n' "${entry}" "digest pin in image-versions.yml"
+        missing=1
+    else
+        printf '  ok       %-52s %s\n' "${entry}" "digest pin in image-versions.yml"
+    fi
+
+    echo
+    if [[ "${missing}" != "0" ]]; then
+        echo "Fedora ${version} is NOT ready - see MISSING above." >&2
+        exit 1
+    fi
+    echo "Fedora ${version} is ready."
+
 # Image Name
 [group('Utility')]
 [private]
