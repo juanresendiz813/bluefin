@@ -9,20 +9,25 @@ set -ouex pipefail
 # shellcheck source=build_files/shared/copr-helpers.sh
 source /ctx/build_files/shared/copr-helpers.sh
 
-# Use negativo17 for the multimedia stack. Fedora's own Silverblue ships a
-# crippled mesa/va stack with no accelerated video decode; Classic used to
-# inherit the replacement from the ublue base image and now has to do it here.
-# `config-manager` writes to /etc/dnf/repos.override.d/99-config_manager.repo
-# rather than editing the repo file, so 17-cleanup.sh removes that override and
-# validate-repos.sh scans it. `repolist` hides disabled repos, so test the file.
-if [[ ! -f /etc/yum.repos.d/fedora-multimedia.repo ]]; then
-    dnf config-manager addrepo --from-repofile="https://negativo17.org/repos/fedora-multimedia.repo"
-fi
+# Use negativo17 for the multimedia stack. Fedora cannot ship patent-encumbered
+# codecs, so its image carries a crippled mesa/va stack and no H.264/H.265/AAC.
+# Classic used to get the replacements baked into the ublue base image; building
+# on Fedora directly it has to pull them in itself.
+#
+# The repo file is not created here: ublue-os-akmods-addons, installed by
+# 03-install-kernel-akmods.sh, owns negativo17-fedora-multimedia.repo, which
+# declares repo id `fedora-multimedia`. Adding a second file declaring the same
+# id is rejected by dnf, so only enable it. Note that `config-manager` does not
+# edit that file - it writes /etc/dnf/repos.override.d/99-config_manager.repo,
+# which 17-cleanup.sh removes and validate-repos.sh scans.
 dnf config-manager setopt fedora-multimedia.enabled=1
 
-# Packages replaced with negativo17 builds, then versionlocked so nothing later
-# in the build walks them back. intel-vpl-gpu-rt is deliberately absent:
-# negativo17 ships no vpl package for F44, so it stays Fedora's build.
+# Two mechanisms are needed here, and they are not interchangeable.
+#
+# OVERRIDES are packages Fedora and negativo17 both ship under the SAME name,
+# already installed from Fedora: `distro-sync` swaps them to negativo17's build.
+# intel-vpl-gpu-rt is deliberately absent - negativo17 ships no vpl package for
+# F44, so it stays Fedora's build.
 OVERRIDES=(
     intel-gmmlib
     intel-mediasdk
@@ -37,22 +42,42 @@ OVERRIDES=(
     mesa-vulkan-drivers
 )
 
-# Priority is scoped to this one transaction. At 90 the repo shadows ~53 Fedora
-# package names, which must not be in effect for the bulk install below.
+# CODECS are the same software under a DIFFERENT name in each repo: Fedora ships
+# ffmpeg-free / libav*-free / fdk-aac-free, negativo17 ships ffmpeg / libav* /
+# libfdk-aac. `distro-sync` cannot bridge a rename - it only moves an installed
+# name to another version of that same name - so these have to be installed, and
+# the install replaces the -free builds. That rename is the whole reason the two
+# lists cannot be merged into one.
+CODECS=(
+    ffmpeg
+    ffmpeg-libs
+    libavcodec
+    libfdk-aac
+    intel-vaapi-driver
+    libva-utils
+    pipewire-libs-extra
+    libde265
+    uvg266-libs
+    vvdec-libs
+)
+
+# Priority is scoped to these two transactions. At 90 the repo shadows ~53
+# Fedora package names, which must not be in effect for the bulk install below.
 dnf config-manager setopt fedora-multimedia.priority=90
 dnf distro-sync --skip-unavailable -y --repo='fedora-multimedia' "${OVERRIDES[@]}"
+dnf -y install --enablerepo='fedora-multimedia' "${CODECS[@]}"
 dnf config-manager unsetopt fedora-multimedia.priority
 
-# distro-sync exits 0 when negativo17 is unreachable (its repo file ships
-# skip_if_unavailable=1) and when a package is simply not in the repo, so the
-# exit code cannot tell us the swap happened. Check the packages themselves.
-for pkg in "${OVERRIDES[@]}"; do
+# Neither command's exit code can tell us the swap happened: distro-sync exits 0
+# when negativo17 is unreachable (its repo file ships skip_if_unavailable=1) and
+# when a package is simply not in the repo. Check the packages themselves.
+for pkg in "${OVERRIDES[@]}" "${CODECS[@]}"; do
     if ! rpm -q --qf '%{vendor}' "$pkg" 2>/dev/null | grep -q negativo17; then
         echo "Multimedia override failed: ${pkg} did not come from negativo17." >&2
         exit 1
     fi
 done
-dnf versionlock add "${OVERRIDES[@]}"
+dnf versionlock add "${OVERRIDES[@]}" "${CODECS[@]}"
 
 # Nothing after this point should resolve against negativo17.
 dnf config-manager setopt fedora-multimedia.enabled=0
