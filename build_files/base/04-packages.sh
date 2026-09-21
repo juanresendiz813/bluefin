@@ -63,8 +63,15 @@ CODECS=(
 
 # Priority is scoped to these two transactions. At 90 the repo shadows ~53
 # Fedora package names, which must not be in effect for the bulk install below.
+#
+# `--enablerepo`, not `--repo`: `--repo` restricts the transaction to that repo
+# alone, so the solver cannot see dependencies that live in Fedora's own repos.
+# At F45 negativo17's libavutil grew a libOpenCL.so.1 dependency, provided only
+# by Fedora's OpenCL-ICD-Loader, and the sync failed with "nothing provides".
+# `--enablerepo` adds negativo17 alongside Fedora instead of replacing it;
+# priority=90 above is what still makes negativo17 win for anything it carries.
 dnf config-manager setopt fedora-multimedia.priority=90
-dnf distro-sync --skip-unavailable -y --repo='fedora-multimedia' "${OVERRIDES[@]}"
+dnf distro-sync --skip-unavailable -y --enablerepo='fedora-multimedia' "${OVERRIDES[@]}"
 dnf -y install --enablerepo='fedora-multimedia' "${CODECS[@]}"
 dnf config-manager unsetopt fedora-multimedia.priority
 
