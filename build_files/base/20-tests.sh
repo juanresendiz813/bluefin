@@ -51,6 +51,40 @@ for package in "${IMPORTANT_PACKAGES[@]}"; do
     rpm -q "${package}" >/dev/null || { echo "Missing package: ${package}... Exiting"; exit 1 ; }
 done
 
+# these should be sourced from negativo17's fedora-multimedia repo
+# as Fedora can't ship patent encumbered video codecs.
+# 04-packages.sh pulls these in; the image used to inherit them from the ublue
+# base image, so nothing verified them. This is the whole set it now owns - if a
+# future rollover loses the negativo17 repo, the build fails here rather than
+# shipping an image with no accelerated video decode.
+NEGATIVO_PACKAGES=(
+    ffmpeg
+    ffmpeg-libs
+    intel-gmmlib
+    intel-mediasdk
+    intel-vaapi-driver
+    libavcodec
+    libde265
+    libfdk-aac
+    libheif
+    libva
+    libva-intel-media-driver
+    libva-utils
+    mesa-dri-drivers
+    mesa-filesystem
+    mesa-libEGL
+    mesa-libGL
+    mesa-libgbm
+    mesa-vulkan-drivers
+    pipewire-libs-extra
+    uvg266-libs
+    vvdec-libs
+)
+
+for package in "${NEGATIVO_PACKAGES[@]}"; do
+    rpm -q --qf "%{NAME} %{VENDOR}" "${package}" | grep -q "negativo17\.org" || { echo "${package} not from negativo17... Exiting"; exit 1 ; }
+done
+
 # these packages are supposed to be removed
 # and are considered footguns
 UNWANTED_PACKAGES=(
