@@ -33,6 +33,13 @@ dnf5 -y install \
 
 dnf5 versionlock add kernel kernel-devel kernel-devel-matched kernel-core kernel-modules kernel-modules-core kernel-modules-extra
 
+# The ublue base image shipped ublue-os-akmods-addons pre-installed. Nothing in
+# this repository installs it, so on Fedora's image it is simply absent along
+# with the two repo files it owns: _copr_ublue-os-akmods.repo, which the sed
+# below edits, and negativo17-fedora-multimedia.repo, which 04-packages.sh
+# enables. Install it from the akmods payload unpacked above.
+dnf5 -y install /tmp/akmods/ublue-os/ublue-os-akmods-addons-*.rpm
+
 # Everyone
 # NOTE: we won't use dnf5 copr plugin for ublue-os/akmods until our upstream provides the COPR standard naming
 sed -i 's@enabled=0@enabled=1@g' /etc/yum.repos.d/_copr_ublue-os-akmods.repo
