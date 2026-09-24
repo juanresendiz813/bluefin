@@ -9,6 +9,60 @@ set -ouex pipefail
 # shellcheck source=build_files/shared/copr-helpers.sh
 source /ctx/build_files/shared/copr-helpers.sh
 
+# Multimedia stack from negativo17, as Fedora can't ship patent encumbered codecs.
+# The repo file comes with ublue-os-akmods-addons. config-manager writes to
+# /etc/dnf/repos.override.d rather than the repo file, 17-cleanup.sh removes it.
+dnf config-manager setopt fedora-multimedia.enabled=1
+
+# Same package name in both repos, distro-sync moves these over.
+# intel-vpl-gpu-rt is not in negativo17 for F44 and stays Fedora's.
+OVERRIDES=(
+    intel-gmmlib
+    intel-mediasdk
+    libheif
+    libva
+    libva-intel-media-driver
+    mesa-dri-drivers
+    mesa-filesystem
+    mesa-libEGL
+    mesa-libGL
+    mesa-libgbm
+    mesa-vulkan-drivers
+)
+
+# Fedora only ships these as -free builds (ffmpeg-free, libav*-free, fdk-aac-free),
+# distro-sync can't cross a rename so they are installed and replace the -free ones.
+CODECS=(
+    ffmpeg
+    ffmpeg-libs
+    libavcodec
+    libfdk-aac
+    intel-vaapi-driver
+    libva-utils
+    pipewire-libs-extra
+    libde265
+    uvg266-libs
+    vvdec-libs
+)
+
+# Fedora's libheif recommends libheif-ffmpeg, which requires Fedora's exact libheif build
+# and keeps distro-sync from moving libheif over. negativo17 has no such subpackage.
+dnf -y remove libheif-ffmpeg
+
+# Priority only for these two transactions, at 90 the repo shadows ~53 Fedora packages.
+# --enablerepo rather than --repo so dependencies can still resolve from Fedora.
+dnf config-manager setopt fedora-multimedia.priority=90
+dnf distro-sync --skip-unavailable -y --enablerepo='fedora-multimedia' "${OVERRIDES[@]}"
+dnf -y install --enablerepo='fedora-multimedia' "${CODECS[@]}"
+dnf config-manager unsetopt fedora-multimedia.priority
+
+# distro-sync exits 0 when the repo is unreachable, so check the packages themselves
+for package in "${OVERRIDES[@]}" "${CODECS[@]}"; do
+    rpm -q --qf "%{NAME} %{VENDOR}" "${package}" | grep -q "negativo17\.org" || { echo "${package} not from negativo17... Exiting"; exit 1 ; }
+done
+dnf versionlock add "${OVERRIDES[@]}" "${CODECS[@]}"
+dnf config-manager setopt fedora-multimedia.enabled=0
+
 # NOTE:
 # Packages are split into FEDORA_PACKAGES and COPR_PACKAGES to prevent
 # malicious COPRs from injecting fake versions of Fedora packages.

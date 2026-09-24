@@ -45,6 +45,9 @@ for repo in negativo17-fedora-multimedia tailscale fedora-cisco-openh264; do
     fi
 done
 
+# dnf config-manager writes here rather than to the repo files, and it takes precedence
+rm -f /etc/dnf/repos.override.d/99-config_manager.repo
+
 # Disable all COPR repos (should already be disabled by helpers, but ensure)
 for i in /etc/yum.repos.d/_copr:*.repo; do
     if [[ -f "$i" ]]; then

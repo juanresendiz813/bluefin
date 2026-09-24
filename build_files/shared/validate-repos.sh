@@ -5,6 +5,8 @@ echo "::group:: ===$(basename "$0")==="
 set -eou pipefail
 
 REPOS_DIR="/etc/yum.repos.d"
+# dnf config-manager writes here, an enabled=1 in it overrides the repo file
+OVERRIDE_DIR="/etc/dnf/repos.override.d"
 VALIDATION_FAILED=0
 ENABLED_REPOS=()
 
@@ -78,6 +80,12 @@ for repo_name in "${OTHER_REPOS[@]}"; do
     if [[ -f "$repo_path" ]]; then
         check_repo_file "$repo_path"
     fi
+done
+
+echo ""
+echo "Checking dnf config-manager overrides..."
+for repo in "$OVERRIDE_DIR"/*.repo; do
+    [[ -f "$repo" ]] && check_repo_file "$repo"
 done
 
 echo ""
