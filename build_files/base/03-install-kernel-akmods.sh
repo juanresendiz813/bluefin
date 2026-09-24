@@ -33,6 +33,10 @@ dnf5 -y install \
 
 dnf5 versionlock add kernel kernel-devel kernel-devel-matched kernel-core kernel-modules kernel-modules-core kernel-modules-extra
 
+# AKMODS Addons
+# NOTE: owns the ublue-os/akmods and negativo17 repo files used below
+dnf5 -y install /tmp/akmods/ublue-os/ublue-os-akmods-addons-*.rpm
+
 # Everyone
 # NOTE: we won't use dnf5 copr plugin for ublue-os/akmods until our upstream provides the COPR standard naming
 sed -i 's@enabled=0@enabled=1@g' /etc/yum.repos.d/_copr_ublue-os-akmods.repo
