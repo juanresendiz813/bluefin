@@ -2,6 +2,8 @@ repo_organization := "ublue-os"
 rechunker_image := "ghcr.io/ublue-os/legacy-rechunk:v1.0.1-x86_64@sha256:2627cbf92ca60ab7372070dcf93b40f457926f301509ffba47a04d6a9e1ddaf7"
 common_image := "ghcr.io/projectbluefin/common:latest"
 brew_image := "ghcr.io/ublue-os/brew:latest"
+base_image_org := "quay.io/fedora-ostree-desktops"
+base_image_name := "silverblue"
 images := '(
     [bluefin]=bluefin
     [bluefin-dx]=bluefin-dx
@@ -114,10 +116,6 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
     common_image_sha=$(yq -r '.images[] | select(.name == "common") | .digest' image-versions.yml)
     brew_image_sha=$(yq -r '.images[] | select(.name == "brew") | .digest' image-versions.yml)
 
-    # Base Image
-    base_image_name="silverblue"
-
-
     # AKMODS Flavor and Kernel Version
     if [[ "${flavor}" =~ hwe ]]; then
         akmods_flavor="bazzite"
@@ -135,18 +133,16 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
     fi
     fedora_version=$({{ just }} fedora_version '{{ image }}' '{{ tag }}' '{{ flavor }}' '{{ kernel_pin }}')
 
-    # Base image digest pin, keyed by the resolved Fedora version so the pinned
-    # digest can never disagree with the version everything else is built for.
-    base_image_entry="${base_image_name}-main-${fedora_version}"
-    base_image_sha=$(yq -r ".images[] | select(.name == \"${base_image_entry}\") | .digest" image-versions.yml)
+    # Base image digest, resolved at build time: quay.io expires fedora-ostree-desktops
+    # tags after four weeks, so a pin in image-versions.yml would go stale
+    base_image_sha=$(skopeo inspect --retry-times 3 docker://{{ base_image_org }}/{{ base_image_name }}:"${fedora_version}" | jq -r '.Digest')
     if [[ -z "${base_image_sha}" || "${base_image_sha}" == "null" ]]; then
-        echo "No digest pinned for ${base_image_entry} in image-versions.yml." >&2
-        echo "Add an entry for Fedora ${fedora_version} before building." >&2
+        echo "No digest found for {{ base_image_org }}/{{ base_image_name }}:${fedora_version}." >&2
         exit 1
     fi
 
     # Verify Base Image with cosign, pinned by digest
-    {{ just }} verify-container "${base_image_name}-main:${fedora_version}@${base_image_sha}"
+    {{ just }} verify-container "{{ base_image_name }}:${fedora_version}@${base_image_sha}" {{ base_image_org }} quay.io-fedora-ostree-desktops.pub
 
     # Kernel Release/Pin
     if [[ -z "${kernel_pin:-}" ]]; then
@@ -193,7 +189,7 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
         target="dx"
     fi
     BUILD_ARGS+=("--build-arg" "AKMODS_FLAVOR=${akmods_flavor}")
-    BUILD_ARGS+=("--build-arg" "BASE_IMAGE_NAME=${base_image_name}")
+    BUILD_ARGS+=("--build-arg" "BASE_IMAGE_NAME={{ base_image_name }}")
     BUILD_ARGS+=("--build-arg" "BASE_IMAGE_SHA=${base_image_sha}")
     BUILD_ARGS+=("--build-arg" "COMMON_IMAGE={{ common_image }}")
     BUILD_ARGS+=("--build-arg" "COMMON_IMAGE_SHA=${common_image_sha}")
@@ -342,11 +338,10 @@ rechunk $image="bluefin" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
 
     # Cleanup Space during Github Action
     if [[ "{{ ghcr }}" == "1" ]]; then
-        base_image_name=silverblue-main
         if [[ "${tag}" =~ stable ]]; then
             tag="stable-daily"
         fi
-        ID=$(${SUDOIF} ${PODMAN} images --filter reference=ghcr.io/{{ repo_organization }}/"${base_image_name}":${fedora_version} --format "{{ '{{.ID}}' }}")
+        ID=$(${SUDOIF} ${PODMAN} images --filter reference={{ base_image_org }}/{{ base_image_name }}:${fedora_version} --format "{{ '{{.ID}}' }}")
         if [[ -n "$ID" ]]; then
             ${PODMAN} rmi "$ID"
         fi

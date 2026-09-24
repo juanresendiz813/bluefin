@@ -1,7 +1,6 @@
 ARG BASE_IMAGE_NAME="silverblue"
 ARG FEDORA_MAJOR_VERSION="42"
-ARG SOURCE_IMAGE="${BASE_IMAGE_NAME}-main"
-ARG BASE_IMAGE="ghcr.io/ublue-os/${SOURCE_IMAGE}"
+ARG BASE_IMAGE="quay.io/fedora-ostree-desktops/${BASE_IMAGE_NAME}"
 ARG BASE_IMAGE_SHA=""
 ARG COMMON_IMAGE="ghcr.io/projectbluefin/common:latest"
 ARG COMMON_IMAGE_SHA=""
