@@ -1,0 +1,36 @@
+name: E2E Testsuite
+on:
+  # The fork's default branch does not carry this file, so workflow_dispatch
+  # cannot reach it; a push to this test branch runs the three-image set.
+  push:
+    branches:
+      - test/testsuite
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "OCI image to test"
+        required: false
+        default: "ghcr.io/ublue-os/bluefin:stable"
+        type: string
+
+permissions:
+  contents: read
+  packages: write # testsuite pushes desktop screenshot OCI artifacts to GHCR
+
+jobs:
+  e2e:
+    name: E2E common (${{ matrix.image }})
+    # Advisory only: nothing gates on this job. test_ref pins the test content
+    # to the same commit as the workflow; compose_image=false keeps the run
+    # from publishing ghcr.io/<owner>/testsuite-e2e.
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        image: ${{ github.event_name == 'push' && fromJSON('["ghcr.io/ublue-os/bluefin:stable", "ghcr.io/juanresendiz813/bluefin:latest-44.20260927", "ghcr.io/juanresendiz813/bluefin:latest-45.20260927"]') || fromJSON(format('["{0}"]', inputs.image)) }}
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@d9fd3c59b577fdc77fc85bb5e4c8bd947069ecf4 # v1
+    with:
+      image: ${{ matrix.image }}
+      suites: common
+      test_ref: d9fd3c59b577fdc77fc85bb5e4c8bd947069ecf4
+      compose_image: false
