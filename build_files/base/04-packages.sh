@@ -180,7 +180,10 @@ copr_install_isolated "che/nerd-fonts" "nerd-fonts"
 
 # From ublue-os/packages
 copr_install_isolated "ublue-os/packages" "uupd"
-copr_install_isolated "ublue-os/packages" "gnome-rounded-blur"
+# LOCAL F45 TEST ONLY: no fc45 build in ublue-os/packages COPR
+if [[ "${FEDORA_MAJOR_VERSION}" -lt 45 ]]; then
+    copr_install_isolated "ublue-os/packages" "gnome-rounded-blur"
+fi
 
 # Version-specific COPR packages
 # case "$FEDORA_MAJOR_VERSION" in
