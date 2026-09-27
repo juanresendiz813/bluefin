@@ -76,15 +76,28 @@ if [[ ! "${IMAGE_NAME}" =~ nvidia ]]; then
     rocminfo
 fi
 
-dnf config-manager addrepo --from-repofile=https://download.docker.com/linux/fedora/docker-ce.repo
-sed -i "s/enabled=.*/enabled=0/g" /etc/yum.repos.d/docker-ce.repo
-dnf -y install --enablerepo=docker-ce-stable \
-    containerd.io \
-    docker-buildx-plugin \
-    docker-ce \
-    docker-ce-cli \
-    docker-compose-plugin \
-    docker-model-plugin
+# Docker CE is not available for Fedora 45 yet, so use Fedora's own packages there
+# (no Fedora package exists for docker-model-plugin)
+# https://github.com/docker/docker-ce-packaging/issues/1353
+# TODO: get it from Docker again once it's available
+if [[ "$FEDORA_MAJOR_VERSION" -lt 45 ]]; then
+    dnf config-manager addrepo --from-repofile=https://download.docker.com/linux/fedora/docker-ce.repo
+    sed -i "s/enabled=.*/enabled=0/g" /etc/yum.repos.d/docker-ce.repo
+    dnf -y install --enablerepo=docker-ce-stable \
+        containerd.io \
+        docker-buildx-plugin \
+        docker-ce \
+        docker-ce-cli \
+        docker-compose-plugin \
+        docker-model-plugin
+else
+    dnf -y install \
+        containerd \
+        docker-buildx \
+        docker-cli \
+        docker-compose \
+        moby-engine
+fi
 
 tee /etc/yum.repos.d/vscode.repo <<'EOF'
 [code]
