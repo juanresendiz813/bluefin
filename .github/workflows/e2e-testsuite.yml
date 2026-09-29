@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
       max-parallel: 3
       matrix:
-        image: ${{ github.event_name == 'push' && fromJSON('["ghcr.io/ublue-os/bluefin:stable", "ghcr.io/juanresendiz813/bluefin:latest-44.20260927", "ghcr.io/juanresendiz813/bluefin:latest-45.20260927"]') || fromJSON(format('["{0}"]', inputs.image)) }}
+        image: ${{ github.event_name == 'push' && fromJSON('["ghcr.io/ublue-os/bluefin:stable", "ghcr.io/juanresendiz813/bluefin@sha256:8a8753a311dcc35db0d760288905210cc60f9d35e1a87490a238313d73a1dfc2", "ghcr.io/juanresendiz813/bluefin-dx@sha256:f9420297f0370a4a528959ee2ca41642c56c72cb9ee40f66a38b05cfbb4d684d", "ghcr.io/juanresendiz813/bluefin-nvidia-open@sha256:fe35eae02ff81a5e37be8b8bb2007236f852f55ebab828ce01fb362377f846bc", "ghcr.io/juanresendiz813/bluefin-dx-nvidia-open@sha256:818a501a0493aab4986a89f93822e7898b11945261b443e36d532dfda1612dad"]') || fromJSON(format('["{0}"]', inputs.image)) }}
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@d9fd3c59b577fdc77fc85bb5e4c8bd947069ecf4 # v1
     with:
       image: ${{ matrix.image }}
