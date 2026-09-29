@@ -70,10 +70,12 @@ dnf config-manager setopt fedora-multimedia.enabled=0
 # COPR packages are installed individually with isolated enablement.
 
 # Base packages from Fedora repos - common to all versions
+# Includes ublue-os/main's packages.json set, minus what Fedora's silverblue image already ships
 FEDORA_PACKAGES=(
     adcli
     adw-gtk3-theme
     adwaita-fonts-all
+    alsa-firmware
     autofs
     bash-color-prompt
     bcache-tools
@@ -85,8 +87,10 @@ FEDORA_PACKAGES=(
     ddcutil
     evtest
     fastfetch
+    ffmpegthumbnailer
     firewall-config
     fish
+    flatpak-spawn
     foo2zjs
     fuse-encfs
     gcc
@@ -94,9 +98,17 @@ FEDORA_PACKAGES=(
     git-credential-libsecret
     glow
     gnome-tweaks
+    google-noto-sans-balinese-fonts
+    google-noto-sans-cjk-fonts
+    google-noto-sans-javanese-fonts
+    google-noto-sans-sundanese-fonts
+    grub2-tools-extra
     gum
+    gvfs-nfs
     hplip
+    htop
     ibus-mozc
+    ibus-unikey
     ifuse
     igt-gpu-tools
     input-remapper
@@ -106,19 +118,29 @@ FEDORA_PACKAGES=(
     krb5-workstation
     libappindicator-gtk3
     libayatana-appindicator-gtk3
+    libcamera-gstreamer
+    libcamera-tools
     libgda
     libgda-sqlite
     libimobiledevice
+    libimobiledevice-utils
     libratbag-ratbagd
     libxcrypt-compat
     lm_sensors
+    lshw
     make
     mesa-libGLU
     mozc
     nautilus-gsconnect
+    net-tools
+    nvtop
     oddjob-mkhomedir
     opendyslexic-fonts
+    openrgb-udev-rules
     openssh-askpass
+    pam-u2f
+    pam_yubico
+    pamu2fcfg
     powerstat
     powertop
     printer-driver-brlaser
@@ -133,16 +155,24 @@ FEDORA_PACKAGES=(
     samba-winbind-clients
     samba-winbind-modules
     setools-console
+    smartmontools
+    solaar-udev
+    squashfs-tools
     sssd-nfs-idmap
     switcheroo-control
+    symlinks
+    tcpdump
     tmux
+    traceroute
     usbip
     usbmuxd
+    vim
     waypipe
     wireguard-tools
     wl-clipboard
     xdg-terminal-exec
     xprop
+    yubikey-manager
     zenity
     zsh
 )
@@ -179,6 +209,7 @@ dnf -y install --enablerepo='tailscale-stable' tailscale
 copr_install_isolated "che/nerd-fonts" "nerd-fonts"
 
 # From ublue-os/packages
+copr_install_isolated "ublue-os/packages" "oversteer-udev"
 copr_install_isolated "ublue-os/packages" "uupd"
 # LOCAL F45 TEST ONLY: no fc45 build in ublue-os/packages COPR
 if [[ "${FEDORA_MAJOR_VERSION}" -lt 45 ]]; then
@@ -203,6 +234,7 @@ EXCLUDED_PACKAGES=(
     fedora-bookmarks
     fedora-chromium-config
     fedora-chromium-config-gnome
+    fedora-third-party
     firefox
     firefox-langpacks
     gnome-extensions-app
