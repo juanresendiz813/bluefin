@@ -4,7 +4,7 @@ on:
   # cannot reach it; a push to this test branch runs the three-image set.
   push:
     branches:
-      - test/testsuite
+      - test/pr904-proof
   workflow_dispatch:
     inputs:
       image:
@@ -27,10 +27,11 @@ jobs:
       fail-fast: false
       max-parallel: 3
       matrix:
-        image: ${{ github.event_name == 'push' && fromJSON('["ghcr.io/ublue-os/bluefin:stable", "ghcr.io/juanresendiz813/bluefin@sha256:8a8753a311dcc35db0d760288905210cc60f9d35e1a87490a238313d73a1dfc2", "ghcr.io/juanresendiz813/bluefin-dx@sha256:f9420297f0370a4a528959ee2ca41642c56c72cb9ee40f66a38b05cfbb4d684d", "ghcr.io/juanresendiz813/bluefin-nvidia-open@sha256:fe35eae02ff81a5e37be8b8bb2007236f852f55ebab828ce01fb362377f846bc", "ghcr.io/juanresendiz813/bluefin-dx-nvidia-open@sha256:818a501a0493aab4986a89f93822e7898b11945261b443e36d532dfda1612dad"]') || fromJSON(format('["{0}"]', inputs.image)) }}
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@d9fd3c59b577fdc77fc85bb5e4c8bd947069ecf4 # v1
+        image: ${{ github.event_name == 'push' && fromJSON('["ghcr.io/ublue-os/bluefin:stable", "ghcr.io/projectbluefin/bluefin:stable", "ghcr.io/projectbluefin/bluefin-lts:stable"]') || fromJSON(format('["{0}"]', inputs.image)) }}
+    uses: juanresendiz813/testsuite/.github/workflows/e2e.yml@31f6d952193c83cbb277928183c3a6b3587a2d96 # projectbluefin/testsuite#904 head
     with:
       image: ${{ matrix.image }}
       suites: common
-      test_ref: d9fd3c59b577fdc77fc85bb5e4c8bd947069ecf4
+      test_repository: juanresendiz813/testsuite
+      test_ref: 31f6d952193c83cbb277928183c3a6b3587a2d96
       compose_image: false
