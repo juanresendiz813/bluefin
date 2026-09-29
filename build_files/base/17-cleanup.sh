@@ -48,6 +48,15 @@ for repo in negativo17-fedora-multimedia tailscale fedora-cisco-openh264; do
     done
 done
 
+# Pre-release Fedora ships updates-testing enabled; only beta images keep it on
+if [[ "${UBLUE_IMAGE_TAG}" != "beta" ]]; then
+    for repo_file in /etc/yum.repos.d/fedora-updates-testing.repo /usr/share/dnf5/repos.d/fedora-updates-testing.repo; do
+        if [[ -f "$repo_file" ]]; then
+            sed -i 's@enabled=1@enabled=0@g' "$repo_file"
+        fi
+    done
+fi
+
 # dnf config-manager writes here rather than to the repo files, and it takes precedence
 rm -f /etc/dnf/repos.override.d/99-config_manager.repo
 
