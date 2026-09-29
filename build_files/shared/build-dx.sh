@@ -28,6 +28,9 @@ EOF
 # Install Packages and set up DX
 /ctx/build_files/dx/00-dx.sh
 
+# Turn off updates-testing now that the last package install is done
+/ctx/build_files/shared/disable-updates-testing.sh
+
 # Validate all repos are disabled before committing
 /ctx/build_files/shared/validate-repos.sh
 

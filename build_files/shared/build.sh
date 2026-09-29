@@ -55,6 +55,9 @@ if [ "${IMAGE_FLAVOR}" == "dx" ] ; then
   /ctx/build_files/shared/build-dx.sh
 fi
 
+# Turn off updates-testing now that the last package install is done
+/ctx/build_files/shared/disable-updates-testing.sh
+
 # Validate all repos are disabled before committing
 /ctx/build_files/shared/validate-repos.sh
 
