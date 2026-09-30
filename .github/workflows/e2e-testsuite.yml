@@ -19,27 +19,37 @@ permissions:
 
 jobs:
   e2e:
-    name: E2E common (${{ matrix.image }}, compose=${{ matrix.compose }})
+    name: E2E common (${{ matrix.image }})
     # Advisory only: nothing gates on this job. test_ref pins the test content
-    # to the same commit as the workflow. The three raw-image lanes keep
-    # compose_image=false; one composed lane proves image detection when the
-    # IMAGE reaching behave is ghcr.io/<owner>/testsuite-e2e:run-<id> (#907).
+    # to the same commit as the workflow; compose_image=false keeps these
+    # lanes from publishing ghcr.io/<owner>/testsuite-e2e.
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 3
       matrix:
         image:
           - ghcr.io/ublue-os/bluefin:stable
           - ghcr.io/projectbluefin/bluefin:stable
           - ghcr.io/projectbluefin/bluefin-lts:stable
-        compose: [false]
-        include:
-          - image: ghcr.io/projectbluefin/bluefin:stable
-            compose: true
     uses: juanresendiz813/testsuite/.github/workflows/e2e.yml@b408d61b74f0c3d24e4a630ba6053810dd3d9c8c # projectbluefin/testsuite#904 head
     with:
       image: ${{ matrix.image }}
       suites: common
       test_repository: juanresendiz813/testsuite
       test_ref: b408d61b74f0c3d24e4a630ba6053810dd3d9c8c
-      compose_image: ${{ matrix.compose }}
+      compose_image: false
+
+  # Composed lane: the IMAGE reaching behave is
+  # ghcr.io/<owner>/testsuite-e2e:run-<id>, so family/org detection can only
+  # come from BASE_IMAGE (#907). A literal boolean: passing
+  # `${{ matrix.compose }}` into the boolean input arrived falsy and the
+  # compose job was skipped (run 36726956604).
+  e2e-composed:
+    name: E2E common (ghcr.io/projectbluefin/bluefin:stable, composed)
+    uses: juanresendiz813/testsuite/.github/workflows/e2e.yml@b408d61b74f0c3d24e4a630ba6053810dd3d9c8c # projectbluefin/testsuite#904 head
+    with:
+      image: ghcr.io/projectbluefin/bluefin:stable
+      suites: common
+      test_repository: juanresendiz813/testsuite
+      test_ref: b408d61b74f0c3d24e4a630ba6053810dd3d9c8c
+      compose_image: true
