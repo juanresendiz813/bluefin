@@ -1,10 +1,10 @@
 name: E2E Testsuite
 on:
   # The fork's default branch does not carry this file, so workflow_dispatch
-  # cannot reach it; a push to this test branch runs the three-image set.
+  # cannot reach it; a push to this test branch runs the two-image set.
   push:
     branches:
-      - test/testsuite
+      - test/wheel-proof
   workflow_dispatch:
     inputs:
       image:
@@ -21,16 +21,22 @@ jobs:
   e2e:
     name: E2E common (${{ matrix.image }})
     # Advisory only: nothing gates on this job. test_ref pins the test content
-    # to the same commit as the workflow; compose_image=false keeps the run
-    # from publishing ghcr.io/<owner>/testsuite-e2e.
+    # to the same commit as the workflow; compose_image=false keeps these
+    # lanes from publishing ghcr.io/<owner>/testsuite-e2e.
+    # bluefin-lts:stable carries post-common#1108 (wheel-only pkexec) and
+    # failed the ublue-user-setup scenario before this fix; Classic is the
+    # control (pre-#1108 common, passed before).
     strategy:
       fail-fast: false
-      max-parallel: 3
+      max-parallel: 2
       matrix:
-        image: ${{ github.event_name == 'push' && fromJSON('["ghcr.io/ublue-os/bluefin:stable", "ghcr.io/juanresendiz813/bluefin@sha256:8a8753a311dcc35db0d760288905210cc60f9d35e1a87490a238313d73a1dfc2", "ghcr.io/juanresendiz813/bluefin-dx@sha256:f9420297f0370a4a528959ee2ca41642c56c72cb9ee40f66a38b05cfbb4d684d", "ghcr.io/juanresendiz813/bluefin-nvidia-open@sha256:fe35eae02ff81a5e37be8b8bb2007236f852f55ebab828ce01fb362377f846bc", "ghcr.io/juanresendiz813/bluefin-dx-nvidia-open@sha256:818a501a0493aab4986a89f93822e7898b11945261b443e36d532dfda1612dad"]') || fromJSON(format('["{0}"]', inputs.image)) }}
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@d9fd3c59b577fdc77fc85bb5e4c8bd947069ecf4 # v1
+        image:
+          - ghcr.io/projectbluefin/bluefin-lts:stable
+          - ghcr.io/ublue-os/bluefin:stable
+    uses: juanresendiz813/testsuite/.github/workflows/e2e.yml@e1614540190d89c39523e64928c99dadc1f4ac04 # fix/e2e-test-user-wheel head
     with:
       image: ${{ matrix.image }}
       suites: common
-      test_ref: d9fd3c59b577fdc77fc85bb5e4c8bd947069ecf4
+      test_repository: juanresendiz813/testsuite
+      test_ref: e1614540190d89c39523e64928c99dadc1f4ac04
       compose_image: false
