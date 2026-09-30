@@ -28,10 +28,10 @@ jobs:
       max-parallel: 3
       matrix:
         image: ${{ github.event_name == 'push' && fromJSON('["ghcr.io/ublue-os/bluefin:stable", "ghcr.io/projectbluefin/bluefin:stable", "ghcr.io/projectbluefin/bluefin-lts:stable"]') || fromJSON(format('["{0}"]', inputs.image)) }}
-    uses: juanresendiz813/testsuite/.github/workflows/e2e.yml@31f6d952193c83cbb277928183c3a6b3587a2d96 # projectbluefin/testsuite#904 head
+    uses: juanresendiz813/testsuite/.github/workflows/e2e.yml@82a2be566e8fb52c782ced26a8d60af0ac9ed31a # projectbluefin/testsuite#904 head
     with:
       image: ${{ matrix.image }}
       suites: common
       test_repository: juanresendiz813/testsuite
-      test_ref: 31f6d952193c83cbb277928183c3a6b3587a2d96
+      test_ref: 82a2be566e8fb52c782ced26a8d60af0ac9ed31a
       compose_image: false
