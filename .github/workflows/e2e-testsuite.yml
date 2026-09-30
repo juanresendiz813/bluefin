@@ -19,19 +19,27 @@ permissions:
 
 jobs:
   e2e:
-    name: E2E common (${{ matrix.image }})
+    name: E2E common (${{ matrix.image }}, compose=${{ matrix.compose }})
     # Advisory only: nothing gates on this job. test_ref pins the test content
-    # to the same commit as the workflow; compose_image=false keeps the run
-    # from publishing ghcr.io/<owner>/testsuite-e2e.
+    # to the same commit as the workflow. The three raw-image lanes keep
+    # compose_image=false; one composed lane proves image detection when the
+    # IMAGE reaching behave is ghcr.io/<owner>/testsuite-e2e:run-<id> (#907).
     strategy:
       fail-fast: false
-      max-parallel: 3
+      max-parallel: 4
       matrix:
-        image: ${{ github.event_name == 'push' && fromJSON('["ghcr.io/ublue-os/bluefin:stable", "ghcr.io/projectbluefin/bluefin:stable", "ghcr.io/projectbluefin/bluefin-lts:stable"]') || fromJSON(format('["{0}"]', inputs.image)) }}
-    uses: juanresendiz813/testsuite/.github/workflows/e2e.yml@82a2be566e8fb52c782ced26a8d60af0ac9ed31a # projectbluefin/testsuite#904 head
+        image:
+          - ghcr.io/ublue-os/bluefin:stable
+          - ghcr.io/projectbluefin/bluefin:stable
+          - ghcr.io/projectbluefin/bluefin-lts:stable
+        compose: [false]
+        include:
+          - image: ghcr.io/projectbluefin/bluefin:stable
+            compose: true
+    uses: juanresendiz813/testsuite/.github/workflows/e2e.yml@b408d61b74f0c3d24e4a630ba6053810dd3d9c8c # projectbluefin/testsuite#904 head
     with:
       image: ${{ matrix.image }}
       suites: common
       test_repository: juanresendiz813/testsuite
-      test_ref: 82a2be566e8fb52c782ced26a8d60af0ac9ed31a
-      compose_image: false
+      test_ref: b408d61b74f0c3d24e4a630ba6053810dd3d9c8c
+      compose_image: ${{ matrix.compose }}
