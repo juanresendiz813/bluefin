@@ -46,6 +46,11 @@ jobs:
             image: quay.io/centos-bootc/centos-bootc:stream10
           - id: L-bluefin-dx-lts
             image: ghcr.io/ublue-os/bluefin-dx:lts
+          # Aurora: same osbuild-selinux line in its dx script, same pinned-base pattern
+          - id: M-aurora-dx-stable
+            image: ghcr.io/ublue-os/aurora-dx:stable
+          - id: N-aurora-stable
+            image: ghcr.io/ublue-os/aurora:stable
           # Negative control: a plain (non-ostree) Fedora container with the RPM installed fresh.
           # Expected RPM-ORIGINAL; proves the probe discriminates.
           - id: Z-fedora44-plain-rpm
