@@ -65,9 +65,8 @@ command -v matchpathcon >/dev/null || echo "matchpathcon missing"
 matchpathcon /var/home /var/home/x /var/home/x/.ssh /var/home/x/.ssh/authorized_keys /home/x/.ssh 2>&1 || true
 if matchpathcon -n /var/home/x/.ssh 2>/dev/null | grep -q ':ssh_home_t:'; then echo "TEST_BEFORE=PASS"; else echo "TEST_BEFORE=FAIL"; fi
 
-echo "## candidate fix applied INSIDE this throwaway container (rpm-ostree's subs_dist edit)"
-sed -i 's|^/var/home[[:space:]]|# &|' "$SUBS"
-grep -q '^/home /var/home$' "$SUBS" || echo '/home /var/home' >> "$SUBS"
+echo "## candidate fix applied INSIDE this throwaway container (one-line variant: rewrite the reversed rule in place)"
+sed -i 's|^/var/home[[:space:]]\+/home$|/home /var/home|' "$SUBS"
 echo "### subs_dist AFTER"; cat -A "$SUBS"
 echo "### matchpathcon AFTER"
 matchpathcon /var/home /var/home/x /var/home/x/.ssh /var/home/x/.ssh/authorized_keys 2>&1 || true
