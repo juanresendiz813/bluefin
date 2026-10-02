@@ -1,0 +1,77 @@
+---
+# Throwaway. Lives only on the test/selinux-subs-dist branch of the fork; never for upstream.
+# Read-only probe of published images for ublue-os/bluefin#4976 (file_contexts.subs_dist /var/home rule).
+name: SELinux subs_dist probe (throwaway)
+
+on:
+  push:
+    branches:
+      - test/selinux-subs-dist
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: A-bluefin-dx-stable
+            image: ghcr.io/ublue-os/bluefin-dx:stable
+          - id: B-bluefin-stable
+            image: ghcr.io/ublue-os/bluefin:stable
+          # Classic's pinned base: image-versions.yml silverblue-main-44
+          - id: C-silverblue-main-44-pinned
+            image: ghcr.io/ublue-os/silverblue-main@sha256:1f05de28fc4ce8b004e524b1b5e1e0ce5f828b696c07a352bdb6d776b9242903
+          # Fedora reference (rpm-ostree compose): expected OSTREE-FIXED
+          - id: D-fedora-silverblue-44
+            image: quay.io/fedora-ostree-desktops/silverblue:44
+          - id: E-bluefin-dx-lts-testing
+            image: ghcr.io/ublue-os/bluefin-dx:lts-testing
+          - id: F-bluefin-lts-testing
+            image: ghcr.io/ublue-os/bluefin:lts-testing
+          - id: G-bluefin-dx-lts-hwe
+            image: ghcr.io/ublue-os/bluefin-dx:lts-hwe
+          - id: H-pbf-bluefin-lts-stable
+            image: ghcr.io/projectbluefin/bluefin-lts:stable
+          - id: I-fork-bluefin-45
+            image: ghcr.io/juanresendiz813/bluefin:latest-45.20260929
+          - id: J-fork-bluefin-dx-45
+            image: ghcr.io/juanresendiz813/bluefin-dx:latest-45.20260929
+          # Negative control: a plain (non-ostree) Fedora container with the RPM installed fresh.
+          # Expected RPM-ORIGINAL; proves the probe discriminates.
+          - id: Z-fedora44-plain-rpm
+            image: registry.fedoraproject.org/fedora:44
+            setup: dnf -y -q install selinux-policy-targeted libselinux-utils >/dev/null
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Probe ${{ matrix.image }}
+        env:
+          SETUP: ${{ matrix.setup }}
+        run: bash .github/selinux-probe/probe.sh "${{ matrix.image }}" "out/${{ matrix.id }}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: ${{ matrix.id }}
+          path: out/${{ matrix.id }}
+          if-no-files-found: error
+
+  summary:
+    needs: probe
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          path: artifacts
+      - name: Summarise
+        run: bash .github/selinux-probe/summarize.sh artifacts | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: summary
+          path: artifacts
+          if-no-files-found: error
