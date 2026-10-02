@@ -1,0 +1,71 @@
+name: SELinux subs_dist proof (fork only)
+
+# Fork-only proof build for the file_contexts.subs_dist fix on this branch
+# (ublue-os/bluefin#4976). Builds bluefin-dx the way reusable-build.yml does
+# (same runner, same just invocation), then reads the file and the resulting
+# labels inside the image, next to the published control image.
+# Nothing is pushed or signed. Not for upstream.
+
+on:
+  push:
+    branches:
+      - test/selinux-proof
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build bluefin-dx (stable, main) and check file_contexts.subs_dist
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          submodules: recursive
+
+      - name: Maximize build space
+        uses: ublue-os/remove-unwanted-software@695eb75bc387dbcd9685a8e72d23439d8686cba6 # v10
+
+      - name: Install Just
+        run: |
+          /home/linuxbrew/.linuxbrew/bin/brew install just
+          echo "/home/linuxbrew/.linuxbrew/bin" >> $GITHUB_PATH
+
+      - name: Check Just Syntax
+        shell: bash
+        run: |
+          just check
+
+      # Same command as reusable-build.yml's "Build Image" step; no rechunk, no push.
+      - name: Build Image (bluefin-dx stable main, no push)
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sudo -E $(command -v just) repo_organization="${{ github.repository_owner }}" \
+                    build-ghcr bluefin-dx stable main
+
+      - name: Inspect the built image
+        shell: bash
+        run: |
+          sudo podman image inspect localhost/bluefin-dx:stable --format 'built: {{index .Labels "org.opencontainers.image.version"}} {{.Id}}'
+          sudo podman run --rm localhost/bluefin-dx:stable sh -c 'grep -n home /etc/selinux/targeted/contexts/files/file_contexts.subs_dist; rpm -q selinux-policy-targeted; matchpathcon /var/home/x/.ssh /var/home/x/.ssh/authorized_keys'
+
+      - name: Assert ~/.ssh labels as ssh_home_t on the built image
+        shell: bash
+        run: |
+          sudo podman run --rm localhost/bluefin-dx:stable matchpathcon -n /var/home/x/.ssh | grep -F ':ssh_home_t:'
+
+      - name: Control, published ghcr.io/ublue-os/bluefin-dx:stable (expected default_t until the fix ships)
+        shell: bash
+        run: |
+          sudo podman pull -q ghcr.io/ublue-os/bluefin-dx:stable
+          sudo podman image inspect ghcr.io/ublue-os/bluefin-dx:stable --format 'control: {{index .Labels "org.opencontainers.image.version"}} {{.Digest}}'
+          sudo podman run --rm ghcr.io/ublue-os/bluefin-dx:stable sh -c 'grep -n home /etc/selinux/targeted/contexts/files/file_contexts.subs_dist; rpm -q selinux-policy-targeted; matchpathcon /var/home/x/.ssh /var/home/x/.ssh/authorized_keys'
