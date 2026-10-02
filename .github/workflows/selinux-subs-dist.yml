@@ -41,6 +41,11 @@ jobs:
             image: ghcr.io/juanresendiz813/bluefin:latest-45.20260929
           - id: J-fork-bluefin-dx-45
             image: ghcr.io/juanresendiz813/bluefin-dx:latest-45.20260929
+          # LTS base (CentOS bootc compose) and the shipping LTS DX stream, for #1599
+          - id: K-centos-bootc-stream10
+            image: quay.io/centos-bootc/centos-bootc:stream10
+          - id: L-bluefin-dx-lts
+            image: ghcr.io/ublue-os/bluefin-dx:lts
           # Negative control: a plain (non-ostree) Fedora container with the RPM installed fresh.
           # Expected RPM-ORIGINAL; proves the probe discriminates.
           - id: Z-fedora44-plain-rpm
